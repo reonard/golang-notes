@@ -163,10 +163,10 @@ type bmap struct {
 make(map[k]v, hint)
 ```
 
-的代码，在 hint <= 7 时，会调用 makemap_small 来进行初始化，如果 hint > 7，则调用 makemap。
+的代码，在 hint <= 8(bucketSize) 时，会调用 makemap_small 来进行初始化，如果 hint > 8，则调用 makemap。
 
 ```go
-make(map[k]v)
+make(map[k]v) // 测试时，把这个作为一个全局变量 var a = make(map[int]int)
 ```
 
 不提供 hint 的代码，编译器始终会调用 makemap_small 来初始化。
@@ -216,6 +216,28 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
     return h
 }
 ```
+
+当然，实际选用哪个函数不只要看 hint，还要看逃逸分析结果，比如下面这段代码，在生成的汇编中，你是找不到 makemap 的踪影的：
+
+```go
+package main
+
+func main() {
+	var m = make(map[int]int, 4)
+	m[1] = 1
+}
+```
+
+编译器确定 make map 函数的位置在：cmd/compile/internal/gc/walk.go:1192:
+
+```go
+	case OMAKEMAP:
+		t := n.Type
+		hmapType := hmap(t)
+		hint := n.Left
+```
+
+有兴趣的同学可以自行查看~
 
 ## 元素访问
 
@@ -645,6 +667,12 @@ search:
 }
 ```
 
+## 缩容
+
+Go 的 map 是不会缩容的，除非你把整个 map 删掉:
+
+https://github.com/golang/go/issues/20135
+
 ## 扩容
 
 扩容触发在 mapassign 中，我们之前注释过了，主要是两点:
@@ -848,7 +876,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                         //    1111
                         // 所以实际上这个就是
                         // xxx1xxx & 1000 > 0
-                        // 说明这个元素在扩容后一定会去上半区
+                        // 说明这个元素在扩容后一定会去下半区，即Y部分
                         // 所以就是 useY 了
                         if hash&newbit != 0 {
                             useY = 1
@@ -1239,3 +1267,5 @@ func (h *hmap) incrnoverflow() {
     }
 }
 ```
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

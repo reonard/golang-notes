@@ -111,6 +111,7 @@ atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
 
 > Actually modern Intel CPUs (since the Pentium pro) only lock the bus in very rare exceptions. Generally they use cache locking which is much, much more efficient and basically just follows from the usual cache coherence protocol (e.g. exclusive state in MESI). 
 
+[Atomic 详解](atomic.md)
 ## waitgroup
 
 ```go
@@ -1003,7 +1004,9 @@ func (e *entry) tryExpungeLocked() (isExpunged bool) {
     return p == expunged
 }
 ```
-
+-  sync.Map 利用了读写分离的思路为读多写少或读写不同 key 的场景而设计，当违背这种设计初衷来使用 sync.Map 的时候性能或许达不到你的期待
+-  可以参考下其他诸如散列思路减少锁开销的并发安全 [Map](https://github.com/orcaman/concurrent-map/
+)
 # 参考资料
 
 http://www.weixianmanbu.com/article/736.html
@@ -1024,3 +1027,5 @@ Q: 既然被选中了唤醒的那个G，说明这个G就是一定要退出lock�
 
 A:
 
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

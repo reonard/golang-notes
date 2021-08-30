@@ -126,7 +126,7 @@ mesi 协议解决了多核环境下，内存多层级带来的问题。使得 ca
 
 ## CPU 导致乱序
 
-使用 litmus 进行形式化验证:
+使用 litmus 进行验证:
 
 ```
 cat sb.litmus
@@ -180,6 +180,56 @@ Time SB 0.11
 ```
 
 在两个核心上运行汇编指令，意料之外的情况 100w 次中出现了 96 次。虽然很少，但确实是客观存在的情况。
+
+有文档提到，x86 体系的内存序本身比较严格，除了 store-load 以外不存在其它类型的重排，也可以用下列脚本验证:
+
+```
+X86 RW
+{ x=0; y=0; }
+ P0          | P1          ;
+ MOV EAX,[y] | MOV EAX,[x] ;
+ MOV [x],$1  | MOV [y],$1  ;
+locations [x;y;]
+exists (0:EAX=1 /\ 1:EAX=1)
+```
+
+```
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Results for sb.litmus %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+X86 OOO
+
+{x=0; y=0;}
+
+ P0          | P1          ;
+ MOV EAX,[y] | MOV EAX,[x] ;
+ MOV [x],$1  | MOV [y],$1  ;
+
+locations [x; y;]
+exists (0:EAX=1 /\ 1:EAX=1)
+Generated assembler
+	##START _litmus_P0
+	movl	-4(%rsi,%rcx,4), %eax
+	movl	$1, -4(%rbx,%rcx,4)
+	##START _litmus_P1
+	movl	-4(%rbx,%rcx,4), %eax
+	movl	$1, -4(%rsi,%rcx,4)
+
+Test OOO Allowed
+Histogram (2 states)
+500000:>0:EAX=1; 1:EAX=0; x=1; y=1;
+500000:>0:EAX=0; 1:EAX=1; x=1; y=1;
+No
+
+Witnesses
+Positive: 0, Negative: 1000000
+Condition exists (0:EAX=1 /\ 1:EAX=1) is NOT validated
+Hash=7cdd62e8647b817c1615cf8eb9d2117b
+Observation OOO Never 0 1000000
+Time OOO 0.14
+```
+
+无论运行多少次，Positive 应该都是 0。
 
 ## barrier
 
@@ -235,7 +285,7 @@ https://preshing.com/20130922/acquire-and-release-fences/
 
 在 x86/64 平台上，只有 StoreLoad 乱序，所以你使用 acquire release 时，实际上生成的 fence 是 NOP。
 
-在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。
+在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。当然，这里说的只是 sync/atomic 暴露出来的接口。Go 在 runtime 层有较弱内存序的相关接口，位置在: runtime/internal/atomic。
 
 ## memory order 参数
 
@@ -460,6 +510,26 @@ var semtable [semTabSize]struct {
 
 用户态的代码对 false sharing 其实关注的比较少。
 
+例：
+sync/pool.go
+
+```go
+type poolLocal struct {
+	poolLocalInternal
+
+	// Prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	pad [128 - unsafe.Sizeof(poolLocalInternal{})%128]byte
+}
+```
+
+
+## runtime 中的 publicationBarrier
+
+TODO
+
+https://github.com/golang/go/issues/35541
+
 参考资料：
 
 https://homes.cs.washington.edu/~bornholt/post/memory-models.html
@@ -497,3 +567,7 @@ https://software.intel.com/en-us/articles/detect-and-avoid-memory-bottlenecks#_M
 https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
 
 https://github.com/torvalds/linux/blob/master/Documentation/memory-barriers.txt
+
+http://www.overbyte.com.au/misc/Lesson3/CacheFun.html
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

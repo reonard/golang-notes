@@ -6,7 +6,7 @@
 
 1. [x] [Bootstrap](bootstrap.md)
 2. [x] [Channel](channel.md)
-3. [ ] [Interface](interface.md)
+3. [x] [Interface](interface.md)
 4. [x] [Select](select.md)
 5. [x] [Slice](slice.md)
 6. [x] [Timer](timer.md)
@@ -25,3 +25,19 @@
 19. [x] [Semaphore](semaphore.md)
 20. [x] [Memory Barrier](memory_barrier.md)
 21. [ ] [Lock Free](lockfree.md)
+22. [x] [context](context.md)
+23. [x] [stack dump](runtime_stack.md)
+24. [x] [Atomic](atomic.md)
+25. [ ] [Generics](generics.md)
+26. [x] [IO](io.md)
+26. [x] [pprof](pprof.md)
+
+# Authors
+
+[cch123](https://github.com/cch123)
+
+[wziww](https://github.com/wziww)
+
+# 公众号
+
+<img width="222px"  src="https://github.com/cch123/golang-notes/raw/master/images/gzh.png">
